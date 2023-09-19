@@ -211,17 +211,6 @@ RCT_EXPORT_METHOD(createTemplate:(NSString *)templateId config:(NSDictionary*)co
         }
         [listTemplate setLeadingNavigationBarButtons:leadingNavigationBarButtons];
         [listTemplate setTrailingNavigationBarButtons:trailingNavigationBarButtons];
-        if (![RCTConvert BOOL:config[@"backButtonHidden"]]) {
-            if (@available(iOS 14.0, *)) {
-                CPBarButton *backButton = [[CPBarButton alloc] initWithTitle:@" Back" handler:^(CPBarButton * _Nonnull barButton) {
-                    if (hasListeners) {
-                        [self sendEventWithName:@"backButtonPressed" body:@{@"templateId":templateId}];
-                    }
-                    [self popTemplate:false];
-                }];
-                [listTemplate setBackButton:backButton];
-            }
-        }
         if (config[@"emptyViewTitleVariants"]) {
             if (@available(iOS 14.0, *)) {
                 listTemplate.emptyViewTitleVariants = [RCTConvert NSArray:config[@"emptyViewTitleVariants"]];

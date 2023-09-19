@@ -48,12 +48,6 @@ export interface ListTemplateConfig extends TemplateConfig {
   onBackButtonPressed?(): void;
 
   /**
-   * Option to hide back button
-   * (defaults to false)
-   */
-  backButtonHidden?: boolean;
-
-  /**
    * Assistant Configuration
    * @see https://developer.apple.com/documentation/carplay/cplisttemplate#3762508
    */
