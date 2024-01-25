@@ -28,4 +28,12 @@ export interface ListItem {
    * Is Playing flag.
    */
   isPlaying?: boolean;
+  /**
+   * Value between 0.0 and 1.0 for progress bar of the list item cell.
+   */
+  playbackProgress?: number;
+  /**
+   * The image from file system displayed on the trailing edge of the list item cell.
+   */
+  accessoryImage?: ImageSourcePropType;
 }
