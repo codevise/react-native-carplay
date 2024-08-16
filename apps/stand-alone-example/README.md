@@ -48,7 +48,7 @@ In it, replicate the `application:didFinishLaunchingWithOptions:` method
 from `RCTAppDelegate`except for the `rootViewController` and window creation.
 
 Here is an example implementation based on the `RCTAppDelegate`
-implementation in React Native version 0.71.13:
+implementation in React Native version 0.74.5:
 
 ```swift
 // ios/AppDelegate.swift
