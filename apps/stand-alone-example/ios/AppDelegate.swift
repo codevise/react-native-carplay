@@ -8,12 +8,6 @@ class AppDelegate: RCTAppDelegate {
   var rootView: UIView?;
 
   static var shared: AppDelegate { return UIApplication.shared.delegate as! AppDelegate }
-
-  override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-    moduleName = "RNCarPlayStandAlone"
-    
-    return true
-  }
   
   /**
    In React Native 0.74 there are 3 public flags which depend on the new architecture:
@@ -29,6 +23,14 @@ class AppDelegate: RCTAppDelegate {
       #else
       return false
       #endif
+  }
+  
+  override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+    moduleName = "RNCarPlayStandAlone"
+    
+    RCTSetNewArchEnabled(self.newArchEnabled);
+    
+    return true
   }
   
   /**
@@ -108,7 +110,7 @@ class AppDelegate: RCTAppDelegate {
     }
   }
   
-  override func bundleURL() -> URL? {
+  func bundleURL() -> URL? {
     #if DEBUG
       return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index");
     #else
