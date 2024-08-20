@@ -96,8 +96,8 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				41C8BD372C6F6F11008A8D20 /* PrivacyInfo.xcprivacy */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
-				E350076D2810C39100F6679C /* AppDelegate.swift */,
 				E350076C2810C39100F6679C /* RNCarPlayStandAlone-Bridging-Header.h */,
+				E350076D2810C39100F6679C /* AppDelegate.swift */,
 				E350076F2810CAC400F6679C /* CarScene.swift */,
 				E35007712810CAE100F6679C /* PhoneScene.swift */,
 			);
@@ -605,10 +605,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
@@ -680,10 +677,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;

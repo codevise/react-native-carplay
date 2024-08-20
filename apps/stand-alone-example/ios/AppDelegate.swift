@@ -6,7 +6,6 @@ import React
 class AppDelegate: RCTAppDelegate {
 
   var rootView: UIView?;
-  var concurrentRootEnabled = true;
 
   static var shared: AppDelegate { return UIApplication.shared.delegate as! AppDelegate }
 
@@ -14,6 +13,22 @@ class AppDelegate: RCTAppDelegate {
     moduleName = "RNCarPlayStandAlone"
     
     return true
+  }
+  
+  /**
+   In React Native 0.74 there are 3 public flags which depend on the new architecture:
+   - bridgelessEnabled
+   - fabricEnabled
+   - turboModuleEnabled
+   
+   The accessor newArchEnabled is not publicly exposed, therefore it's recreated here
+   */
+  var newArchEnabled: Bool {
+      #if RCT_NEW_ARCH_ENABLED
+      return true
+      #else
+      return false
+      #endif
   }
   
   /**
@@ -27,33 +42,27 @@ class AppDelegate: RCTAppDelegate {
       return;
     }
     
-    let enableTM = false;
-#if RCT_NEW_ARCH_ENABLED
-    enableTM = self.turboModuleEnabled;
-#endif
-    
-    let application = UIApplication.shared;
-    RCTAppSetupPrepareApp(application, enableTM);
-    
-    if (self.bridge == nil) {
-      self.bridge = super.createBridge(
-        with: self,
-        launchOptions: self.connectionOptionsToLaunchOptions(connectionOptions: connectionOptions)
-      )
+    /**
+     ReactNativeCarPlay requires a bridge and is not compatible with the bridgeless new architecture introduced in React Native 0.74.
+     Therefore we need to eject when the new architecture is enabled
+     */
+    if (self.newArchEnabled) {
+      return;
     }
     
-#if RCT_NEW_ARCH_ENABLED
-    _contextContainer = UnsafeMutablePointer<ContextContainer>.allocate(capacity: 1)
-    _contextContainer?.initialize(to: ContextContainer())
-    _reactNativeConfig = UnsafeMutablePointer<EmptyReactNativeConfig>.allocate(capacity: 1)
-    _reactNativeConfig?.initialize(to: EmptyReactNativeConfig())
-    _contextContainer?.pointee.insert("ReactNativeConfig", _reactNativeConfig)
-    self.bridgeAdapter = RCTSurfacePresenterBridgeAdapter(bridge: self.bridge, contextContainer: _contextContainer)
-    self.bridge?.surfacePresenter = self.bridgeAdapter?.surfacePresenter
-#endif
-   
-    let initProps = self.prepareInitialProps();
-    self.rootView = self.createRootView(with: self.bridge, moduleName: self.moduleName, initProps: initProps)
+    let application = UIApplication.shared;
+    
+    RCTSetNewArchEnabled(self.newArchEnabled)
+    RCTAppSetupPrepareApp(application, self.newArchEnabled)
+    
+    let launchOptions = self.connectionOptionsToLaunchOptions(connectionOptions: connectionOptions)
+    
+    if (self.bridge == nil) {
+      self.bridge = super.createBridge(with: self, launchOptions: launchOptions)
+    }
+    
+    let initProps = self.initialProps as? [String: Any] ?? [String: Any]()
+    self.rootView = self.createRootView(with: self.bridge!, moduleName: self.moduleName!, initProps: initProps)
     
     if #available(iOS 13.0, *) {
       self.rootView!.backgroundColor = UIColor.systemBackground
@@ -98,8 +107,8 @@ class AppDelegate: RCTAppDelegate {
       return scene
     }
   }
-
-  override func sourceURL(for bridge: RCTBridge!) -> URL! {
+  
+  override func bundleURL() -> URL? {
     #if DEBUG
       return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index");
     #else
@@ -107,12 +116,7 @@ class AppDelegate: RCTAppDelegate {
     #endif
   }
 
-  // not exposed from RCTAppDelegate, recreating.
-  func prepareInitialProps() -> [String: Any] {
-    var initProps = self.initialProps as? [String: Any] ?? [String: Any]()
-    #if RCT_NEW_ARCH_ENABLED
-      initProps["kRNConcurrentRoot"] = concurrentRootEnabled()
-    #endif
-    return initProps
+  override func sourceURL(for bridge: RCTBridge) -> URL? {
+    return bundleURL()
   }
 }
