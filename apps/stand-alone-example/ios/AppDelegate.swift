@@ -27,8 +27,7 @@ class AppDelegate: RCTAppDelegate {
   
   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
     moduleName = "RNCarPlayStandAlone"
-    
-    RCTSetNewArchEnabled(self.newArchEnabled);
+    initialProps = [:]
     
     return true
   }
@@ -55,22 +54,14 @@ class AppDelegate: RCTAppDelegate {
     let application = UIApplication.shared;
     
     RCTSetNewArchEnabled(self.newArchEnabled)
+    RCTColorSpaceUtils.applyDefaultColorSpace(self.defaultColorSpace)
     RCTAppSetupPrepareApp(application, self.newArchEnabled)
     
     let launchOptions = self.connectionOptionsToLaunchOptions(connectionOptions: connectionOptions)
     
-    if (self.bridge == nil) {
-      self.bridge = super.createBridge(with: self, launchOptions: launchOptions)
-    }
+    self.rootViewFactory = super.createRCTRootViewFactory()
     
-    let initProps = self.initialProps as? [String: Any] ?? [String: Any]()
-    self.rootView = self.createRootView(with: self.bridge!, moduleName: self.moduleName!, initProps: initProps)
-    
-    if #available(iOS 13.0, *) {
-      self.rootView!.backgroundColor = UIColor.systemBackground
-    } else {
-      self.rootView!.backgroundColor = UIColor.white
-    }
+    self.rootView = rootViewFactory.view(withModuleName: self.moduleName!, initialProperties: self.initialProps!, launchOptions: launchOptions)
   }
   
   /**
@@ -110,7 +101,7 @@ class AppDelegate: RCTAppDelegate {
     }
   }
   
-  func bundleURL() -> URL? {
+  override func bundleURL() -> URL? {
     #if DEBUG
       return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index");
     #else
