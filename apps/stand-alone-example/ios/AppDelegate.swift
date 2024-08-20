@@ -20,25 +20,9 @@ class AppDelegate: RCTAppDelegate {
     moduleName = "RNCarPlayStandAlone"
     
     return true
-    
-    /**
-     Approach 1:
-     Let RCTAppDelegate's application:didFinishLaunchingWithOptions handle app initialization.
-     Problem: It creates a rootViewController, which should only get created when launching the PhoneScene not the CarScene.
-     Since we need a rootViewController in the PhoneScene for assigning the shared appDelegate's rootView,
-     there are two rootViewControllers being created.
-     */
-    //let app = super.application(application, didFinishLaunchingWithOptions: launchOptions);
-    //self.rootView = self.createRootView(
-    //  with: self.bridge,
-    //  moduleName: self.moduleName,
-    //  initProps: self.prepareInitialProps()
-    //);
-    //return app;
   }
   
   /**
-   Approach 2:
    Do not call RCTAppDelegate's application:didFinishLaunchingWithOptions.
    Instead, cherry-pick the code from RCTAppDelegate's application:didFinishLaunchingWithOptions except for window and rootViewController creation
    and do all app initialization manually in initAppFromScene(), moving the window and rootViewController creation to PhoneScene
