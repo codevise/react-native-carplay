@@ -9,7 +9,7 @@ class CarSceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     // Use custom initAppFromScene() for bridge creation
     appDelegate.initAppFromScene(connectionOptions: nil)
     
-    RNCarPlay.connect(with: interfaceController, window: templateApplicationScene.carWindow);
+    RNCarPlay.connect(with: interfaceController, window: templateApplicationScene.carWindow)
   }
 
   func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene, didDisconnectInterfaceController interfaceController: CPInterfaceController) {

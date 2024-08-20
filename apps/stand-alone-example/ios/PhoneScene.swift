@@ -17,7 +17,7 @@ class PhoneSceneDelegate: UIResponder, UIWindowSceneDelegate {
     appDelegate.initAppFromScene(connectionOptions: connectionOptions)
     
     let rootViewController = UIViewController()
-    rootViewController.view = appDelegate.rootView;
+    rootViewController.view = appDelegate.rootView
     
     let window = UIWindow(windowScene: windowScene)
     window.rootViewController = rootViewController

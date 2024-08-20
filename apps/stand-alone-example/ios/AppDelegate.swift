@@ -5,7 +5,7 @@ import React
 @main
 class AppDelegate: RCTAppDelegate {
 
-  var rootView: UIView?;
+  var rootView: UIView?
 
   static var shared: AppDelegate { return UIApplication.shared.delegate as! AppDelegate }
   
@@ -40,7 +40,7 @@ class AppDelegate: RCTAppDelegate {
   func initAppFromScene(connectionOptions: UIScene.ConnectionOptions?) {
     // If bridge has already been initiated by another scene, there's nothing to do here
     if (self.bridge != nil) {
-      return;
+      return
     }
     
     /**
@@ -48,10 +48,10 @@ class AppDelegate: RCTAppDelegate {
      Therefore we need to eject when the new architecture is enabled
      */
     if (self.newArchEnabled) {
-      return;
+      return
     }
     
-    let application = UIApplication.shared;
+    let application = UIApplication.shared
     
     RCTSetNewArchEnabled(self.newArchEnabled)
     RCTColorSpaceUtils.applyDefaultColorSpace(self.defaultColorSpace)
@@ -69,24 +69,24 @@ class AppDelegate: RCTAppDelegate {
    When Scenes are used, the launchOptions param in "didFinishLaunchingWithOptions" is always null, and the expected data is provided through SceneDelegate's ConnectionOptions instead but in a different format
    */
   func connectionOptionsToLaunchOptions(connectionOptions: UIScene.ConnectionOptions?) -> [UIApplication.LaunchOptionsKey: Any] {
-    var launchOptions: [UIApplication.LaunchOptionsKey: Any] = [:];
+    var launchOptions: [UIApplication.LaunchOptionsKey: Any] = [:]
     
     if let options = connectionOptions {
       if options.notificationResponse != nil {
-        launchOptions[UIApplication.LaunchOptionsKey.remoteNotification] = options.notificationResponse?.notification.request.content.userInfo;
+        launchOptions[UIApplication.LaunchOptionsKey.remoteNotification] = options.notificationResponse?.notification.request.content.userInfo
       }
       
       if !options.userActivities.isEmpty {
-        let userActivity = options.userActivities.first;
+        let userActivity = options.userActivities.first
         let userActivityDictionary = [
           "UIApplicationLaunchOptionsUserActivityTypeKey": userActivity?.activityType as Any,
           "UIApplicationLaunchOptionsUserActivityKey": userActivity!
-        ] as [String : Any];
-        launchOptions[UIApplication.LaunchOptionsKey.userActivityDictionary] = userActivityDictionary;
+        ] as [String : Any]
+        launchOptions[UIApplication.LaunchOptionsKey.userActivityDictionary] = userActivityDictionary
       }
     }
     
-    return launchOptions;
+    return launchOptions
   }
 
   override func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
@@ -103,7 +103,7 @@ class AppDelegate: RCTAppDelegate {
   
   override func bundleURL() -> URL? {
     #if DEBUG
-      return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index");
+      return RCTBundleURLProvider.sharedSettings().jsBundleURL(forBundleRoot: "index")
     #else
       return Bundle.main.url(forResource:"main", withExtension:"jsbundle")
     #endif
