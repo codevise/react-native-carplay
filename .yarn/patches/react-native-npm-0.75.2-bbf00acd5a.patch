@@ -1,0 +1,13 @@
+diff --git a/Libraries/AppDelegate/RCTAppDelegate.h b/Libraries/AppDelegate/RCTAppDelegate.h
+index 51ce13d83219227bb7d8165bb24f2862fc8473d2..c91710adf5f451c21f2374609e8f5ee5883f4e35 100644
+--- a/Libraries/AppDelegate/RCTAppDelegate.h
++++ b/Libraries/AppDelegate/RCTAppDelegate.h
+@@ -166,6 +166,8 @@ NS_ASSUME_NONNULL_BEGIN
+ /// Return the bundle URL for the main bundle.
+ - (NSURL *__nullable)bundleURL;
+ 
++- (RCTRootViewFactory *)createRCTRootViewFactory;
++
+ @end
+ 
+ NS_ASSUME_NONNULL_END
