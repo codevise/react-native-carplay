@@ -48,7 +48,12 @@ In it, replicate the `application:didFinishLaunchingWithOptions:` method
 from `RCTAppDelegate`except for the `rootViewController` and window creation.
 
 Here is an example implementation based on the `RCTAppDelegate`
-implementation in React Native version 0.74.5:
+implementation in React Native version 0.75.2.
+Pay attention to the call to `super.createRCTRootViewFactory()` which
+is currently not exposed in the public API of `RCTAppDelegate` and requires a
+patch to `RCTAppDelegate.h` exposing `(RCTRootViewFactory *)createRCTRootViewFactory`
+to work (see the discussion in [this issue](https://github.com/birkir/react-native-carplay/pull/158#issuecomment-2302350901) ).
+Also note that this implementation does not support the new architecture.
 
 ```swift
 // ios/AppDelegate.swift
@@ -56,55 +61,51 @@ implementation in React Native version 0.74.5:
 @main
 class AppDelegate: RCTAppDelegate {
 
-  var rootView: UIView?;
-  var concurrentRootEnabled = true;
+  var rootView: UIView?
+  var concurrentRootEnabled = true
 
   static var shared: AppDelegate { return UIApplication.shared.delegate as! AppDelegate }
 
+  var newArchEnabled: Bool {
+      #if RCT_NEW_ARCH_ENABLED
+      return true
+      #else
+      return false
+      #endif
+  }
+
   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
     moduleName = "YourModuleName"
+    initialProps = [:]
+
     return true
   }
 
   func initAppFromScene(connectionOptions: UIScene.ConnectionOptions?) {
     // If bridge has already been initiated by another scene, there's nothing to do here
     if (self.bridge != nil) {
-      return;
+      return
     }
 
-    let enableTM = false;
-#if RCT_NEW_ARCH_ENABLED
-    enableTM = self.turboModuleEnabled;
-#endif
-
-    let application = UIApplication.shared;
-    RCTAppSetupPrepareApp(application, enableTM);
-
-    if (self.bridge == nil) {
-      self.bridge = super.createBridge(
-        with: self,
-        launchOptions: self.connectionOptionsToLaunchOptions(connectionOptions: connectionOptions)
-      )
+    /**
+     ReactNativeCarPlay requires a bridge and is not compatible with the bridgeless new architecture introduced in React Native 0.74.
+     Therefore we need to eject when the new architecture is enabled
+     */
+    if (self.newArchEnabled) {
+      return
     }
 
-#if RCT_NEW_ARCH_ENABLED
-    _contextContainer = UnsafeMutablePointer<ContextContainer>.allocate(capacity: 1)
-    _contextContainer?.initialize(to: ContextContainer())
-    _reactNativeConfig = UnsafeMutablePointer<EmptyReactNativeConfig>.allocate(capacity: 1)
-    _reactNativeConfig?.initialize(to: EmptyReactNativeConfig())
-    _contextContainer?.pointee.insert("ReactNativeConfig", _reactNativeConfig)
-    self.bridgeAdapter = RCTSurfacePresenterBridgeAdapter(bridge: self.bridge, contextContainer: _contextContainer)
-    self.bridge?.surfacePresenter = self.bridgeAdapter?.surfacePresenter
-#endif
+    let application = UIApplication.shared
 
-    let initProps = self.prepareInitialProps();
-    self.rootView = self.createRootView(with: self.bridge, moduleName: self.moduleName, initProps: initProps)
+    RCTSetNewArchEnabled(self.newArchEnabled)
+    RCTColorSpaceUtils.applyDefaultColorSpace(self.defaultColorSpace)
+    RCTAppSetupPrepareApp(application, self.newArchEnabled)
 
-    if #available(iOS 13.0, *) {
-      self.rootView!.backgroundColor = UIColor.systemBackground
-    } else {
-      self.rootView!.backgroundColor = UIColor.white
-    }
+    let launchOptions = self.connectionOptionsToLaunchOptions(connectionOptions: connectionOptions)
+
+    self.rootViewFactory = super.createRCTRootViewFactory()
+
+    self.rootView = rootViewFactory.view(withModuleName: self.moduleName!, initialProperties: self.initialProps!, launchOptions: launchOptions)
   }
 
   /**
@@ -112,24 +113,24 @@ class AppDelegate: RCTAppDelegate {
    When Scenes are used, the launchOptions param in "didFinishLaunchingWithOptions" is always null, and the expected data is provided through SceneDelegate's ConnectionOptions instead but in a different format
    */
   func connectionOptionsToLaunchOptions(connectionOptions: UIScene.ConnectionOptions?) -> [UIApplication.LaunchOptionsKey: Any] {
-    var launchOptions: [UIApplication.LaunchOptionsKey: Any] = [:];
+    var launchOptions: [UIApplication.LaunchOptionsKey: Any] = [:]
 
     if let options = connectionOptions {
       if options.notificationResponse != nil {
-        launchOptions[UIApplication.LaunchOptionsKey.remoteNotification] = options.notificationResponse?.notification.request.content.userInfo;
+        launchOptions[UIApplication.LaunchOptionsKey.remoteNotification] = options.notificationResponse?.notification.request.content.userInfo
       }
 
       if !options.userActivities.isEmpty {
-        let userActivity = options.userActivities.first;
+        let userActivity = options.userActivities.first
         let userActivityDictionary = [
           "UIApplicationLaunchOptionsUserActivityTypeKey": userActivity?.activityType as Any,
           "UIApplicationLaunchOptionsUserActivityKey": userActivity!
-        ] as [String : Any];
-        launchOptions[UIApplication.LaunchOptionsKey.userActivityDictionary] = userActivityDictionary;
+        ] as [String : Any]
+        launchOptions[UIApplication.LaunchOptionsKey.userActivityDictionary] = userActivityDictionary
       }
     }
 
-    return launchOptions;
+    return launchOptions
   }
 ```
 
@@ -162,7 +163,7 @@ class PhoneSceneDelegate: UIResponder, UIWindowSceneDelegate {
     appDelegate.initAppFromScene(connectionOptions: connectionOptions)
 
     let rootViewController = UIViewController()
-    rootViewController.view = appDelegate.rootView;
+    rootViewController.view = appDelegate.rootView
 
     let window = UIWindow(windowScene: windowScene)
     window.rootViewController = rootViewController
@@ -193,7 +194,7 @@ class CarSceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
 
     appDelegate.initAppFromScene(connectionOptions: nil)
 
-    RNCarPlay.connect(with: interfaceController, window: templateApplicationScene.carWindow);
+    RNCarPlay.connect(with: interfaceController, window: templateApplicationScene.carWindow)
   }
 
   func templateApplicationScene(_ templateApplicationScene: CPTemplateApplicationScene, didDisconnectInterfaceController interfaceController: CPInterfaceController) {
