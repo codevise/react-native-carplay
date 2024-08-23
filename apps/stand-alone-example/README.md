@@ -62,16 +62,13 @@ Also note that this implementation does not support the new architecture.
 class AppDelegate: RCTAppDelegate {
 
   var rootView: UIView?
-  var concurrentRootEnabled = true
-
-  static var shared: AppDelegate { return UIApplication.shared.delegate as! AppDelegate }
 
   var newArchEnabled: Bool {
-      #if RCT_NEW_ARCH_ENABLED
-      return true
-      #else
-      return false
-      #endif
+#if RCT_NEW_ARCH_ENABLED
+    return true
+#else
+    return false
+#endif
   }
 
   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {

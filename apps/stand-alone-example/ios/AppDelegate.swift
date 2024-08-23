@@ -6,8 +6,6 @@ import React
 class AppDelegate: RCTAppDelegate {
 
   var rootView: UIView?
-
-  static var shared: AppDelegate { return UIApplication.shared.delegate as! AppDelegate }
   
   /**
    In React Native 0.74 there are 3 public flags which depend on the new architecture:
@@ -18,11 +16,11 @@ class AppDelegate: RCTAppDelegate {
    The accessor newArchEnabled is not publicly exposed, therefore it's recreated here
    */
   var newArchEnabled: Bool {
-      #if RCT_NEW_ARCH_ENABLED
-      return true
-      #else
-      return false
-      #endif
+#if RCT_NEW_ARCH_ENABLED
+    return true
+#else
+    return false
+#endif
   }
   
   override func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
