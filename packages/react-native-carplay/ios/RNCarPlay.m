@@ -1221,7 +1221,10 @@ RCT_EXPORT_METHOD(updateMapTemplateMapButtons:(NSString*) templateId mapButtons:
 - (void)sendTemplateEventWithName:(CPTemplate *)template name:(NSString*)name json:(NSDictionary*)json {
     NSMutableDictionary *body = [[NSMutableDictionary alloc] initWithDictionary:json];
     NSDictionary *userInfo = [template userInfo];
-    [body setObject:[userInfo objectForKey:@"templateId"] forKey:@"templateId"];
+    NSString *templateId = [userInfo objectForKey:@"templateId"];
+    if (templateId) {
+        [body setObject:templateId forKey:@"templateId"];
+    }
     if (hasListeners) {
         [self sendEventWithName:name body:body];
     }
