@@ -176,6 +176,233 @@ RCT_EXPORT_MODULE();
     [task resume];
 }
 
+# pragma mark - NowPlaying sports mode
+
+// CPNowPlayingModeSports and every object it holds are immutable, so each score
+// update has to rebuild the whole graph and re-supply its images. These caches
+// keep that from re-downloading a team logo on every goal.
+static NSCache<NSString *, UIImage *> *RNCPRemoteImageCache(void) {
+    static NSCache *cache;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cache = [NSCache new];
+    });
+    return cache;
+}
+
+// URLs currently being downloaded, so a rebuild triggered while a download is in
+// flight does not start a second request for the same image. Only touched on the
+// main queue (see methodQueue).
+static NSMutableSet<NSString *> *RNCPImageDownloadsInFlight(void) {
+    static NSMutableSet *inFlight;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        inFlight = [NSMutableSet new];
+    });
+    return inFlight;
+}
+
+// The sports config most recently pushed from JS, retained so that a late image
+// download can re-apply it. nil whenever sports mode is not active.
+static NSDictionary *RNCPSportsModeConfig = nil;
+
+// Resolves a bundled image synchronously, or returns a cached remote image.
+// Returns nil while a remote image is still downloading; the caller renders a
+// fallback and the mode is re-applied once the download lands.
+- (UIImage *)sportsImageFromConfig:(NSDictionary *)config imageKey:(NSString *)imageKey urlKey:(NSString *)urlKey {
+    if (config[imageKey]) {
+        return [RCTConvert UIImage:config[imageKey]];
+    }
+
+    NSString *urlString = [RCTConvert NSString:config[urlKey]];
+    if (urlString.length == 0) {
+        return nil;
+    }
+
+    UIImage *cached = [RNCPRemoteImageCache() objectForKey:urlString];
+    if (cached) {
+        return cached;
+    }
+
+    [self downloadSportsImageWithURL:urlString];
+    return nil;
+}
+
+- (void)downloadSportsImageWithURL:(NSString *)urlString {
+    NSMutableSet<NSString *> *inFlight = RNCPImageDownloadsInFlight();
+    if ([inFlight containsObject:urlString]) {
+        return;
+    }
+    [inFlight addObject:urlString];
+
+    NSURL *url = [NSURL URLWithString:urlString];
+    __weak __typeof(self) weakSelf = self;
+
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithURL:url completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        UIImage *image = data ? [UIImage imageWithData:data] : nil;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [RNCPImageDownloadsInFlight() removeObject:urlString];
+
+            if (!image) {
+                NSLog(@"Failed to load sports image from URL: %@", urlString);
+                return;
+            }
+            [RNCPRemoteImageCache() setObject:image forKey:urlString];
+
+            // Re-apply the current config so the downloaded image is picked up.
+            // This hits the cache, so it cannot start another download.
+            if (@available(iOS 18.4, *)) {
+                if (RNCPSportsModeConfig) {
+                    [weakSelf applySportsMode:RNCPSportsModeConfig];
+                }
+            }
+        });
+    }];
+    [task resume];
+}
+
+- (UIColor *)colorFromHexString:(NSString *)hexString {
+    NSString *cleaned = [[hexString stringByReplacingOccurrencesOfString:@"#" withString:@""]
+                         stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if (cleaned.length != 6) {
+        return nil;
+    }
+
+    unsigned int value = 0;
+    if (![[NSScanner scannerWithString:cleaned] scanHexInt:&value]) {
+        return nil;
+    }
+
+    return [UIColor colorWithRed:((value >> 16) & 0xFF) / 255.0
+                           green:((value >> 8) & 0xFF) / 255.0
+                            blue:(value & 0xFF) / 255.0
+                           alpha:1.0];
+}
+
+// Apple asks for "a gradient or crossfade image ... especially when it includes the
+// primary colors of each team" here, and takes a UIImage rather than colors, so the
+// gradient is drawn on our side. 500x500 is the largest size CarPlay wants.
+- (UIImage *)sportsGradientImageFromColors:(NSArray<NSString *> *)hexColors {
+    if (hexColors.count < 2) {
+        return nil;
+    }
+
+    UIColor *startColor = [self colorFromHexString:hexColors[0]];
+    UIColor *endColor = [self colorFromHexString:hexColors[1]];
+    if (!startColor || !endColor) {
+        return nil;
+    }
+
+    // Redrawing on every score update would be wasteful; the pair fully describes
+    // the image, so it doubles as the cache key.
+    NSString *cacheKey = [NSString stringWithFormat:@"gradient:%@-%@", hexColors[0], hexColors[1]];
+    UIImage *cached = [RNCPRemoteImageCache() objectForKey:cacheKey];
+    if (cached) {
+        return cached;
+    }
+
+    CGSize size = CGSizeMake(500, 500);
+    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];
+    UIImage *gradientImage = [renderer imageWithActions:^(UIGraphicsImageRendererContext * _Nonnull rendererContext) {
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        NSArray *colors = @[(__bridge id)startColor.CGColor, (__bridge id)endColor.CGColor];
+        CGFloat locations[] = { 0.0, 1.0 };
+        CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)colors, locations);
+
+        CGContextDrawLinearGradient(rendererContext.CGContext,
+                                    gradient,
+                                    CGPointMake(0, size.height / 2.0),
+                                    CGPointMake(size.width, size.height / 2.0),
+                                    0);
+
+        CGGradientRelease(gradient);
+        CGColorSpaceRelease(colorSpace);
+    }];
+
+    [RNCPRemoteImageCache() setObject:gradientImage forKey:cacheKey];
+    return gradientImage;
+}
+
+- (CPNowPlayingSportsTeam *)parseSportsTeam:(NSDictionary *)config API_AVAILABLE(ios(18.4)) {
+    UIImage *logo = [self sportsImageFromConfig:config imageKey:@"logoImage" urlKey:@"logoUrl"];
+
+    CPNowPlayingSportsTeamLogo *teamLogo;
+    if (logo) {
+        teamLogo = [[CPNowPlayingSportsTeamLogo alloc] initWithTeamLogo:logo];
+    } else {
+        // No logo available, or a remote logo is still downloading. Initials let
+        // the screen render immediately and are replaced once the image lands.
+        NSString *initials = [RCTConvert NSString:config[@"initials"]];
+        teamLogo = [[CPNowPlayingSportsTeamLogo alloc] initWithTeamInitials:initials ?: @""];
+    }
+
+    // name and eventScore are nonnull in CarPlay; coerce missing JS fields rather
+    // than passing nil into the initializer.
+    NSString *name = [RCTConvert NSString:config[@"name"]];
+    NSString *score = [RCTConvert NSString:config[@"score"]];
+
+    return [[CPNowPlayingSportsTeam alloc] initWithName:name ?: @""
+                                                   logo:teamLogo
+                                          teamStandings:[RCTConvert NSString:config[@"standings"]]
+                                             eventScore:score ?: @""
+                                    possessionIndicator:[self sportsImageFromConfig:config imageKey:@"possessionIndicatorImage" urlKey:@"possessionIndicatorUrl"]
+                                               favorite:[RCTConvert BOOL:config[@"favorite"]]];
+}
+
+- (CPNowPlayingSportsClock *)parseSportsClock:(NSDictionary *)config API_AVAILABLE(ios(18.4)) {
+    NSTimeInterval seconds = [RCTConvert double:config[@"seconds"]];
+    BOOL paused = [RCTConvert BOOL:config[@"paused"]];
+
+    // CarPlay animates the clock on its own from this seed value, counting up or
+    // down. It only needs pushing again when the value jumps or the clock stops.
+    if ([RCTConvert BOOL:config[@"countsUp"]]) {
+        return [[CPNowPlayingSportsClock alloc] initWithElapsedTime:seconds paused:paused];
+    }
+    return [[CPNowPlayingSportsClock alloc] initWithTimeRemaining:seconds paused:paused];
+}
+
+- (CPNowPlayingSportsEventStatus *)parseSportsEventStatus:(NSDictionary *)config API_AVAILABLE(ios(18.4)) {
+    NSDictionary *clockConfig = [RCTConvert NSDictionary:config[@"clock"]];
+
+    return [[CPNowPlayingSportsEventStatus alloc] initWithEventStatusText:[RCTConvert NSStringArray:config[@"text"]]
+                                                        eventStatusImage:[self sportsImageFromConfig:config imageKey:@"statusImage" urlKey:@"statusImageUrl"]
+                                                              eventClock:clockConfig ? [self parseSportsClock:clockConfig] : nil];
+}
+
+- (void)applySportsMode:(NSDictionary *)config API_AVAILABLE(ios(18.4)) {
+    NSDictionary *statusConfig = [RCTConvert NSDictionary:config[@"eventStatus"]];
+
+    // A generated team-colour gradient is what Apple recommends here, so it wins
+    // over any artwork image the caller also supplied.
+    UIImage *backgroundArtwork = [self sportsGradientImageFromColors:[RCTConvert NSStringArray:config[@"backgroundGradientColors"]]];
+    if (!backgroundArtwork) {
+        backgroundArtwork = [self sportsImageFromConfig:config imageKey:@"backgroundArtworkImage" urlKey:@"backgroundArtworkUrl"];
+    }
+
+    CPNowPlayingModeSports *mode =
+        [[CPNowPlayingModeSports alloc] initWithLeftTeam:[self parseSportsTeam:[RCTConvert NSDictionary:config[@"leftTeam"]]]
+                                               rightTeam:[self parseSportsTeam:[RCTConvert NSDictionary:config[@"rightTeam"]]]
+                                             eventStatus:statusConfig ? [self parseSportsEventStatus:statusConfig] : nil
+                                       backgroundArtwork:backgroundArtwork];
+
+    CPNowPlayingTemplate.sharedTemplate.nowPlayingMode = mode;
+}
+
+RCT_EXPORT_METHOD(updateNowPlayingMode:(NSDictionary*)config) {
+    if (@available(iOS 18.4, *)) {
+        if ([[RCTConvert NSString:config[@"type"]] isEqualToString:@"sports"]) {
+            RNCPSportsModeConfig = config;
+            [self applySportsMode:config];
+        } else {
+            // The mode lives on the shared template and outlives any pushed
+            // template, and a running event clock keeps counting on the system
+            // side. Switching to non-sports content has to reset it explicitly.
+            RNCPSportsModeConfig = nil;
+            CPNowPlayingTemplate.sharedTemplate.nowPlayingMode = CPNowPlayingMode.defaultNowPlayingMode;
+        }
+    }
+}
+
 RCT_EXPORT_METHOD(checkForConnection) {
     RNCPStore *store = [RNCPStore sharedManager];
     if ([store isConnected] && hasListeners) {

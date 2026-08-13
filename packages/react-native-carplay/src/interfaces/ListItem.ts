@@ -19,7 +19,7 @@ export interface ListItem {
   /**
    * Url for image displayed on the leading edge of the list item cell.
    */
-  imgUrl?: null;
+  imgUrl?: string;
   /**
    * A Boolean value indicating whether the list item cell shows a disclosure indicator on the trailing edge of the list item cell.
    */

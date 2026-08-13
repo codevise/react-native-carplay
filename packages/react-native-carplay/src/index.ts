@@ -33,3 +33,10 @@ export type {
   PointOfInterestItem,
 } from './templates/PointOfInterestTemplate';
 export type { TripConfig, TripPoint } from './navigation/Trip';
+export type { NowPlayingTemplateConfig } from './templates/NowPlayingTemplate';
+export type {
+  NowPlayingMode,
+  SportsTeam,
+  SportsEventStatus,
+  SportsEventClock,
+} from './interfaces/NowPlayingMode';

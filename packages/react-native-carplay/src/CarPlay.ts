@@ -28,6 +28,7 @@ interface InternalCarPlay extends NativeModule {
   presentTemplate(templateId: string, animated: boolean): void;
   dismissTemplate(animated: boolean): void;
   enableNowPlaying(enabled: boolean): void;
+  updateNowPlayingMode(config: unknown): void;
   updateManeuversNavigationSession(id: string, x: Maneuver[]): void;
   updateTravelEstimatesNavigationSession(
     id: string,
